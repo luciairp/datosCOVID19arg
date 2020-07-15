@@ -80,7 +80,7 @@ ggplot(aes(prop_asint,fct_reorder(PCIAcarga,prop_asint),label = n))+
 
 # Período PREHOSPITALIZACIÓN ----------------------------------------------
 
-# quiero ver el tiempo que le lleva a alguien sintomático la htalización
+# quiero ver el tiempo que le lleva a alguien sintomático llegar a la htalización
 # base solo para casos CONHOSPITALIZACIÓN
 # miro la diferencia entre la fecha inicio síntomas SINTf (declarada paciente)
 # y fecha de hospitalización INTf con calculo de períodos de lubridate y división entera
@@ -109,6 +109,10 @@ ggplot(tiempo_a_htal, aes(t_int,fct_reorder(PCIAcarga,t_int)))+
 
 # Período HOSP FALLECIDO --------------------------------------------------
 
+# quiero ver cuánto tiempo estuvieron hospitalizados los casos
+# confirmados que fallecieron
+# datos sólo de casos confirmados y con fechas de internación y muerte
+
 tiempo_htal_fall <- limpia %>% 
   filter(CLASIFres == 'Confirmado') %>% 
   filter (!is.na(INTf) & !is.na(FALLf)) %>% 
@@ -117,3 +121,45 @@ tiempo_htal_fall <- limpia %>%
 ggplot(tiempo_htal_fall, aes(t_fall,fct_reorder(PCIAcarga,t_fall)))+
   geom_boxplot()+
   stat_summary(fun.data = give.n, geom="text")
+
+
+# PROP FALL/HTALIZADOS ----------------------------------------------------
+
+# cuántos de los hospitalizados se mueren según provincia
+# por errores de carga necesito filtrar confirmados 
+
+prop_fall <- limpia %>% 
+  filter(CLASIFres == 'Confirmado') %>% 
+  filter(!is.na(INTf)) %>% #me quedo solo con los casos con internación
+  mutate(muerto = ifelse(fall == 'SI', TRUE,FALSE)) %>% 
+  group_by(PCIAcarga) %>% 
+  summarise( n = n(),
+             tot_muertos = sum(muerto),
+             prop_muertos = tot_muertos/n) 
+
+filter(prop_fall, n > 50) %>% 
+  ggplot(aes(prop_muertos,fct_reorder(PCIAcarga,prop_muertos),label = n))+
+  geom_point()+
+  geom_text(nudge_x = .06)+
+  coord_cartesian(xlim = c(0,1))
+
+
+# PROP HTALIZADOS/CONFIRMADOS ---------------------------------------------
+
+# cuántos de los casos confirmados llegan a ser hospitalizados
+# esto complementa la proporción de asintomáticos
+# acá es cuántos de los sintomáticos son no-suaves
+
+prop_htal <- limpia %>% 
+  filter(CLASIFres == 'Confirmado') %>% 
+  mutate(htaliz = !is.na(INTf)) %>% 
+  group_by(PCIAcarga) %>% 
+  summarise( n = n(),
+             tot_htalizados = sum(htaliz),
+             prop_htalizados = tot_htalizados/n) 
+
+filter(prop_htal, n > 100) %>% 
+  ggplot(aes(prop_htalizados,fct_reorder(PCIAcarga,prop_htalizados),label = n))+
+  geom_point()+
+  geom_text(nudge_x = .05)+
+  coord_cartesian(xlim = c(0,1))
